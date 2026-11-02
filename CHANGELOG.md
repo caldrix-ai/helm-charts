@@ -2,7 +2,7 @@
 
 Every release of the `caldrix` chart, newest first.
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-10-30
 
 The first release.
 

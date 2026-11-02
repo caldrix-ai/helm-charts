@@ -37,7 +37,7 @@ Every value, the GPU rule, storage and exposure are in the [chart's README](char
 
 ## Verified
 
-Verified: installed once with kind in a virtual machine, on the CPU image `ghcr.io/caldrix-ai/caldrix:0.2.0-cpu` with the default model; `helm test` passed and one chat request answered. Not yet run on a cluster of any other kind, and not on any GPU.
+Verified: installed with kind in a virtual machine, at the desk and on the release runner, on the CPU image `ghcr.io/caldrix-ai/caldrix:0.2.0-cpu` with the default model; each time `helm test` passed and one chat request answered. Not yet run on a cluster of any other kind, and not on any GPU.
 
 ## License
 
