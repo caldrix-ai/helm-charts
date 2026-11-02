@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/caldrix-ai/helm-charts/tree/main/charts/caldrix
+    about: Install the chart, its values, storage and exposure.
+  - name: Security vulnerability
+    url: https://github.com/caldrix-ai/helm-charts/blob/main/SECURITY.md
+    about: Report privately to jyothsna@caldrix.ai, never in a public issue.
+  - name: Commercial licensing
+    url: https://caldrix.ai/terms
+    about: Production and commercial use need a license -- jyothsna@caldrix.ai.

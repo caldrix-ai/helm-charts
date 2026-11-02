@@ -1,0 +1,167 @@
+# The caldrix chart: one `caldrix serve` of one model, the CPU image.
+
+# Pods; more than 1 needs persistence.accessModes with ReadWriteMany, or persistence.enabled: false.
+replicaCount: 1
+
+image:
+  # The caldrix image.
+  repository: ghcr.io/caldrix-ai/caldrix
+  # The tag; empty means <appVersion>-cpu.
+  tag: ""
+  # A digest (sha256:...); when set it wins over the tag.
+  digest: ""
+  # The image pull policy.
+  pullPolicy: IfNotPresent
+  # Your plain statement that the image above carries a GPU lane; the one switch the GPU rule reads.
+  gpu: false
+
+# Secrets for pulling from a private registry, as [{name: <secret>}].
+imagePullSecrets: []
+# Replaces the chart's name in resource names.
+nameOverride: ""
+# Replaces the whole resource name.
+fullnameOverride: ""
+
+model:
+  # The served model: an alias, a hub id owner/name[@revision], or ollama:<tag>.
+  name: smollm2-instruct
+  # The context length (--ctx N); empty keeps the server's default.
+  context: ""
+  # The backend: cpu, or hip (refused unless image.gpu is true).
+  backend: cpu
+  # Further `caldrix serve` arguments, appended verbatim.
+  extraArgs: []
+
+huggingface:
+  # A Hugging Face token inline; rendered into a Secret the chart owns.
+  token: ""
+  # An existing Secret holding the token (not with token).
+  existingSecret: ""
+  # The key in existingSecret.
+  existingSecretKey: HF_TOKEN
+
+persistence:
+  # A PersistentVolumeClaim for the model cache at /data/huggingface; false means an emptyDir.
+  enabled: true
+  # The claim's size.
+  size: 20Gi
+  # The StorageClass; empty means the cluster's default.
+  storageClass: ""
+  # An existing claim to mount instead of creating one.
+  existingClaim: ""
+  # The claim's access modes.
+  accessModes:
+    - ReadWriteOnce
+
+# A root initContainer that chowns the cache volume to 10001, for provisioners that ignore fsGroup.
+volumePermissions:
+  enabled: false
+
+service:
+  # The Service type.
+  type: ClusterIP
+  # The Service port, mapped to the container's 8425.
+  port: 80
+  # Annotations on the Service.
+  annotations: {}
+
+ingress:
+  # An Ingress to the Service.
+  enabled: false
+  # The IngressClass.
+  className: ""
+  # Annotations on the Ingress.
+  annotations: {}
+  # The hosts, as [{host: <name>, paths: [{path: /, pathType: Prefix}]}].
+  hosts: []
+  # TLS with your own certificates, as [{secretName: <secret>, hosts: [<name>]}].
+  tls: []
+
+networkPolicy:
+  # A NetworkPolicy on the pod: ingress to port 8425 only; egress (the model download) untouched.
+  enabled: false
+  # The peers admitted, as NetworkPolicy `from` entries; [] admits any source.
+  ingressFrom: []
+
+tests:
+  # The `helm test` pod (curls /healthz and /v1/models).
+  enabled: true
+  # The test pod's image, pinned by digest; the caldrix image has no curl.
+  image: curlimages/curl:8.17.0@sha256:935d9100e9ba842cdb060de42472c7ca90cfe9a7c96e4dacb55e79e560b3ff40
+
+# The container's resources; no limits by default (a CPU limit sets the server's thread count).
+resources:
+  requests:
+    cpu: 2
+    memory: 4Gi
+
+gpu:
+  # Request a GPU (refused unless image.gpu is true).
+  enabled: false
+  # The node resource to request.
+  resource: amd.com/gpu
+  # How many.
+  count: 1
+  # An optional RuntimeClass.
+  runtimeClassName: ""
+
+probes:
+  # The download-and-compile allowance: failureThreshold x periodSeconds.
+  startup:
+    periodSeconds: 10
+    failureThreshold: 60
+    timeoutSeconds: 5
+  # GET /healthz; the server binds its port only once the model is loaded.
+  readiness:
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 5
+  # GET /healthz, on a longer period.
+  liveness:
+    periodSeconds: 30
+    failureThreshold: 3
+    timeoutSeconds: 5
+
+serviceAccount:
+  # Create a ServiceAccount (no RBAC: the server talks to no API).
+  create: true
+  # Its name; empty means the release's full name.
+  name: ""
+  # Annotations on it.
+  annotations: {}
+
+# The pod's security context; the image's user is 10001.
+podSecurityContext:
+  runAsUser: 10001
+  runAsNonRoot: true
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# The container's security context. The compiled kernels and the model-index copy are written under /cache (an
+# emptyDir, sizeLimit 1Gi); the root filesystem is kept writable.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# Extra environment variables, appended verbatim (HF_ENDPOINT for a mirror).
+env: []
+# Extra volumes on the pod.
+extraVolumes: []
+# Extra mounts in the container.
+extraVolumeMounts: []
+# Annotations on the pod.
+podAnnotations: {}
+# Labels on the pod.
+podLabels: {}
+# The pod's PriorityClass.
+priorityClassName: ""
+# Node selection.
+nodeSelector: {}
+# Tolerations.
+tolerations: []
+# Affinity.
+affinity: {}

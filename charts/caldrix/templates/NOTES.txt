@@ -1,0 +1,21 @@
+caldrix serves {{ .Values.model.name }} in namespace {{ .Release.Namespace }}. The pod turns Ready only once the
+model is downloaded, compiled and loaded.
+
+1. Forward the Service to your machine:
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "caldrix.fullname" . }} 8425:{{ .Values.service.port }}
+
+2. Read the served model; the `id` it returns is the `model` to send:
+
+  curl http://localhost:8425/v1/models
+
+3. Chat with it (put that id in place of <id>):
+
+  curl http://localhost:8425/v1/chat/completions -H 'Content-Type: application/json' \
+    -d '{"model": "<id>", "messages": [{"role": "user", "content": "Say hello."}], "max_tokens": 8}'
+
+The server has no authentication. The Service is ClusterIP; put a gateway in front of it before exposing it.
+{{- if not .Values.persistence.enabled }}
+
+persistence.enabled is false: the model cache is an emptyDir, so every restart downloads the model again.
+{{- end }}

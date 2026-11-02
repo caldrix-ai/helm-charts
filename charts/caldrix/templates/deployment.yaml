@@ -1,0 +1,141 @@
+{{- include "caldrix.validate" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "caldrix.fullname" . }}
+  labels:
+    {{- include "caldrix.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "caldrix.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "caldrix.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "caldrix.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
+      {{- if and .Values.gpu.enabled .Values.gpu.runtimeClassName }}
+      runtimeClassName: {{ .Values.gpu.runtimeClassName | quote }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.volumePermissions.enabled }}
+      initContainers:
+        - name: volume-permissions
+          image: {{ include "caldrix.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["chown", "-R", "10001:10001", "/data/huggingface"]
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          volumeMounts:
+            - name: huggingface
+              mountPath: /data/huggingface
+      {{- end }}
+      containers:
+        - name: caldrix
+          image: {{ include "caldrix.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            {{- include "caldrix.args" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8425
+              protocol: TCP
+          env:
+            - name: HF_HOME
+              value: /data/huggingface
+            - name: XDG_CACHE_HOME
+              value: /cache
+            {{- if or .Values.huggingface.token .Values.huggingface.existingSecret }}
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.huggingface.existingSecret }}
+                  name: {{ .Values.huggingface.existingSecret | quote }}
+                  key: {{ .Values.huggingface.existingSecretKey | quote }}
+                  {{- else }}
+                  name: {{ printf "%s-huggingface" (include "caldrix.fullname" .) }}
+                  key: HF_TOKEN
+                  {{- end }}
+            {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            {{- toYaml .Values.probes.startup | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            {{- toYaml .Values.probes.readiness | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            {{- toYaml .Values.probes.liveness | nindent 12 }}
+          {{- $resources := deepCopy .Values.resources }}
+          {{- if .Values.gpu.enabled }}
+          {{- $_ := set $resources "limits" (merge (dict .Values.gpu.resource .Values.gpu.count) (default dict $resources.limits)) }}
+          {{- $_ := set $resources "requests" (merge (dict .Values.gpu.resource .Values.gpu.count) (default dict $resources.requests)) }}
+          {{- end }}
+          resources:
+            {{- toYaml $resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: huggingface
+              mountPath: /data/huggingface
+            - name: cache
+              mountPath: /cache
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: huggingface
+          {{- if not .Values.persistence.enabled }}
+          emptyDir: {}
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ default (include "caldrix.fullname" .) .Values.persistence.existingClaim }}
+          {{- end }}
+        - name: cache
+          emptyDir:
+            sizeLimit: 1Gi
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
