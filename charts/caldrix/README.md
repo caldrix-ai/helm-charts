@@ -46,7 +46,7 @@ curl http://localhost:8425/v1/models
 | `imagePullSecrets` | `[]` | secrets for a private registry, as `[{name: <secret>}]` |
 | `nameOverride` / `fullnameOverride` | `""` / `""` | replace the chart's name, or the whole name, in resource names |
 | `model.name` | `smollm2-instruct` | the model: an alias, a hub id `owner/name[@revision]`, or `ollama:<tag>` |
-| `model.context` | `""` | `--ctx N` when set |
+| `model.context` | `""` | `--ctx N` when set; a positive integer |
 | `model.backend` | `cpu` | `cpu` or `hip`; `hip` is refused unless `image.gpu` is true (the GPU rule) |
 | `model.extraArgs` | `[]` | further `caldrix serve` arguments, appended verbatim |
 | `huggingface.token` | `""` | a Hugging Face token inline, rendered into a Secret the chart owns |
@@ -55,14 +55,14 @@ curl http://localhost:8425/v1/models
 | `persistence.enabled` | `true` | a PersistentVolumeClaim for the model cache; `false` means an `emptyDir`, and every restart downloads the model again |
 | `persistence.size` | `20Gi` | the claim's size |
 | `persistence.storageClass` | `""` | empty means the cluster's default |
-| `persistence.existingClaim` | `""` | an existing claim, mounted instead of creating one |
-| `persistence.accessModes` | `[ReadWriteOnce]` | the claim's access modes |
-| `volumePermissions.enabled` | `false` | a root initContainer that `chown`s the cache volume to 10001 (see Storage) |
+| `persistence.existingClaim` | `""` | an existing claim, mounted instead of creating one; refused with `persistence.enabled: false` |
+| `persistence.accessModes` | `[ReadWriteOnce]` | the claim's access modes; with `existingClaim`, list that claim's modes, which the `replicaCount` rule reads |
+| `volumePermissions.enabled` | `false` | a root initContainer that `chown`s the cache volume to `podSecurityContext.runAsUser`:`fsGroup` (`10001:10001` by default; see Storage) |
 | `service.type` / `service.port` / `service.annotations` | `ClusterIP` / `80` / `{}` | the Service; its port maps to the container's 8425 |
 | `ingress.enabled` | `false` | an Ingress to the Service |
 | `ingress.className` / `ingress.annotations` | `""` / `{}` | the IngressClass, and annotations on the Ingress |
-| `ingress.hosts[]` | `[]` | `[{host: <name>, paths: [{path: /, pathType: Prefix}]}]` |
-| `ingress.tls[]` | `[]` | `[{secretName: <secret>, hosts: [<name>]}]`, with your own certificates |
+| `ingress.hosts[]` | `[]` | `[{host: <name>, paths: [{path: /, pathType: Prefix}]}]`; at least one host, each with at least one path, when `ingress.enabled` |
+| `ingress.tls[]` | `[]` | `[{secretName: <secret>, hosts: [<name>]}]`, with your own certificates; each entry needs both |
 | `networkPolicy.enabled` | `false` | a NetworkPolicy admitting ingress to port 8425 only; egress (the model download) is untouched |
 | `networkPolicy.ingressFrom` | `[]` | the admitted peers, as NetworkPolicy `from` entries; `[]` admits any source |
 | `tests.enabled` | `true` | the `helm test` pod; `false` renders none |
@@ -72,7 +72,7 @@ curl http://localhost:8425/v1/models
 | `gpu.resource` / `gpu.count` | `amd.com/gpu` / `1` | the node resource requested, and how many |
 | `gpu.runtimeClassName` | `""` | an optional RuntimeClass, with `gpu.enabled` |
 | `probes.startup` | `failureThreshold: 60`, `periodSeconds: 10` | the download-and-compile allowance |
-| `probes.readiness` / `probes.liveness` | `periodSeconds: 10` / `30` | `GET /healthz` |
+| `probes.readiness` / `probes.liveness` | `periodSeconds: 10` / `30` | `GET /healthz`; a probe's `httpGet` is merged over that one (its keys win) |
 | `serviceAccount.create` / `name` / `annotations` | `true` / `""` / `{}` | the ServiceAccount; an empty name means the release's full name |
 | `podSecurityContext` | `runAsUser: 10001`, `runAsNonRoot: true`, `fsGroup: 10001` | the pod's security context |
 | `securityContext` | no privilege escalation, all capabilities dropped, `readOnlyRootFilesystem: false` | the container's; the root filesystem is kept writable (see Storage) |

@@ -25,7 +25,7 @@ fullnameOverride: ""
 model:
   # The served model: an alias, a hub id owner/name[@revision], or ollama:<tag>.
   name: smollm2-instruct
-  # The context length (--ctx N); empty keeps the server's default.
+  # The context length (--ctx N), a positive integer; empty keeps the server's default.
   context: ""
   # The backend: cpu, or hip (refused unless image.gpu is true).
   backend: cpu
@@ -47,13 +47,14 @@ persistence:
   size: 20Gi
   # The StorageClass; empty means the cluster's default.
   storageClass: ""
-  # An existing claim to mount instead of creating one.
+  # An existing claim to mount instead of creating one (needs enabled: true).
   existingClaim: ""
-  # The claim's access modes.
+  # The claim's access modes; with existingClaim, list that claim's modes (the replicaCount rule reads them).
   accessModes:
     - ReadWriteOnce
 
-# A root initContainer that chowns the cache volume to 10001, for provisioners that ignore fsGroup.
+# A root initContainer that chowns the cache volume to podSecurityContext.runAsUser:fsGroup (10001:10001 by default),
+# for provisioners that ignore fsGroup.
 volumePermissions:
   enabled: false
 
@@ -72,9 +73,9 @@ ingress:
   className: ""
   # Annotations on the Ingress.
   annotations: {}
-  # The hosts, as [{host: <name>, paths: [{path: /, pathType: Prefix}]}].
+  # The hosts, as [{host: <name>, paths: [{path: /, pathType: Prefix}]}]; at least one when enabled.
   hosts: []
-  # TLS with your own certificates, as [{secretName: <secret>, hosts: [<name>]}].
+  # TLS with your own certificates, as [{secretName: <secret>, hosts: [<name>]}]; each entry needs both.
   tls: []
 
 networkPolicy:
@@ -105,6 +106,7 @@ gpu:
   # An optional RuntimeClass.
   runtimeClassName: ""
 
+# Each probe is GET /healthz on the http port; an httpGet given here is merged over that one (its keys win).
 probes:
   # The download-and-compile allowance: failureThreshold x periodSeconds.
   startup:

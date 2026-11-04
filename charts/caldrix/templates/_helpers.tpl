@@ -96,4 +96,34 @@ The values rules that fail the render by name (the GPU, replica and secret rules
 {{- if and .Values.huggingface.token .Values.huggingface.existingSecret }}
 {{- fail "caldrix: set huggingface.token or huggingface.existingSecret, not both" }}
 {{- end }}
+{{- if and .Values.persistence.existingClaim (not .Values.persistence.enabled) }}
+{{- fail "caldrix: persistence.existingClaim needs persistence.enabled: true (with it false the model cache is an emptyDir and the claim is never mounted)" }}
+{{- end }}
+{{- if and .Values.ingress.enabled (not .Values.ingress.hosts) }}
+{{- fail "caldrix: ingress.enabled needs at least one ingress.hosts entry (an Ingress with no rules routes nothing)" }}
+{{- end }}
+{{- end }}
+
+{{/*
+A probe from probes.<kind>: httpGet GET /healthz on the http port, a user httpGet merged over it (its keys win, so
+the probe carries one httpGet), then the other keys as given.
+*/}}
+{{- define "caldrix.probe" -}}
+{{- $get := mergeOverwrite (dict "path" "/healthz" "port" "http") (deepCopy (default dict .httpGet)) }}
+{{- toYaml (dict "httpGet" $get) }}
+{{- with omit . "httpGet" }}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+The volumePermissions chown's owner, <uid>:<gid>: podSecurityContext.runAsUser (else the image's 10001), and
+podSecurityContext.fsGroup, else runAsGroup, else 10001.
+*/}}
+{{- define "caldrix.volumeOwner" -}}
+{{- $psc := .Values.podSecurityContext }}
+{{- $uid := hasKey $psc "runAsUser" | ternary $psc.runAsUser 10001 }}
+{{- $gid := 10001 }}
+{{- if hasKey $psc "fsGroup" }}{{ $gid = $psc.fsGroup }}{{ else if hasKey $psc "runAsGroup" }}{{ $gid = $psc.runAsGroup }}{{ end }}
+{{- printf "%d:%d" (int $uid) (int $gid) }}
 {{- end }}

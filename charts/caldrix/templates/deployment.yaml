@@ -43,7 +43,7 @@ spec:
         - name: volume-permissions
           image: {{ include "caldrix.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["chown", "-R", "10001:10001", "/data/huggingface"]
+          command: ["chown", "-R", {{ include "caldrix.volumeOwner" . | quote }}, "/data/huggingface"]
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
@@ -82,20 +82,11 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           startupProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            {{- toYaml .Values.probes.startup | nindent 12 }}
+            {{- include "caldrix.probe" .Values.probes.startup | nindent 12 }}
           readinessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            {{- toYaml .Values.probes.readiness | nindent 12 }}
+            {{- include "caldrix.probe" .Values.probes.readiness | nindent 12 }}
           livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            {{- toYaml .Values.probes.liveness | nindent 12 }}
+            {{- include "caldrix.probe" .Values.probes.liveness | nindent 12 }}
           {{- $resources := deepCopy .Values.resources }}
           {{- if .Values.gpu.enabled }}
           {{- $_ := set $resources "limits" (merge (dict .Values.gpu.resource .Values.gpu.count) (default dict $resources.limits)) }}
