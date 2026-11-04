@@ -2,7 +2,7 @@
 
 Every release of the `caldrix` chart, newest first.
 
-## [0.1.1] - unreleased (dated when pushed)
+## [0.1.1] - 2026-11-04
 
 ### Changed
 
@@ -18,6 +18,8 @@ Every release of the `caldrix` chart, newest first.
 - `persistence.existingClaim` with `persistence.enabled: false` fails the install by name; before, the claim was
   silently not mounted.
 - The schema refuses a `model.context` that is not a positive integer.
+
+Verified: installed with kind in a virtual machine on the release runner, twice (the check run and the push run), on the CPU image `ghcr.io/caldrix-ai/caldrix:0.2.0-cpu` with the default model; each time `helm test` passed and one chat request answered; not on any GPU.
 
 ## [0.1.0] - 2026-10-30
 
