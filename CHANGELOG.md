@@ -2,7 +2,7 @@
 
 Every release of the `caldrix` chart, newest first.
 
-## [Unreleased]
+## [0.1.1] - unreleased (dated when pushed)
 
 ### Changed
 
